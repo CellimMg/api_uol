@@ -39,32 +39,31 @@ app.post('/participants', async (req, res) => {
         if (validation.error) {
             console.log(validation.error.details);
             const messages = validation.error.details.map(item => item.message);
+            mongoClient.close();
             res.status(422).send(messages);
-            return;
         }
 
-        const userWithName = await db.collection("users").findOne({name: name});
-        if(userWithName){
+        const userWithName = await db.collection("users").findOne({ name: name });
+        if (userWithName) {
+            mongoClient.close();
             res.sendStatus(409);
-            return;
         }
 
         db.collection("users").insertOne(userToInsert);
 
-		await  db.collection("messages").insertOne({
-            from: name, 
-            to: 'Todos', 
-            text: 'entra na sala...', 
-            type: 'status', 
+        await db.collection("messages").insertOne({
+            from: name,
+            to: 'Todos',
+            text: 'entra na sala...',
+            type: 'status',
             time: dayjs().format('HH:mm:ss')
         });
-        res.sendStatus(201);
         mongoClient.close();
-
+        res.sendStatus(201);
     } catch (error) {
         console.log(error);
-        res.sendStatus(500);
         mongoClient.close();
+        res.sendStatus(500);
     }
 });
 
@@ -74,22 +73,20 @@ app.get('/participants', async (req, res) => {
     try {
         const participantsColection = db.collection("users");
         const participantsList = await participantsColection.find().toArray();
+        mongoClient.close();
         res.status(200).send(participantsList);
-        mongoClient.close();
     } catch (error) {
-        console.log(error)
-        res.status(500).send(error)
+        console.log(error);
         mongoClient.close();
+        res.status(500).send(error);
     }
 });
 
 app.post('/messages', async (req, res) => {
-
-
     await mongoClient.connect();
     const db = mongoClient.db("uol");
 
-    const {to, text, type} = req.body;
+    const { to, text, type } = req.body;
     const user = req.headers.user;
 
     const message = {
@@ -97,34 +94,59 @@ app.post('/messages', async (req, res) => {
         text: text,
         type: type,
         from: user,
-        time:  dayjs().format('HH:mm:ss')
+        time: dayjs().format('HH:mm:ss')
     };
 
+    try {
 
-    const userFromDb = await db.collection("users").findOne({name: user});
-    const validation = messageSchema.validate(message, { abortEarly: false });
+        const userFromDb = await db.collection("users").findOne({ name: user });
+        const validation = messageSchema.validate(message, { abortEarly: false });
 
-    if (validation.error || !userFromDb) {
-        console.log(validation.error);
-        res.sendStatus(422);
-    }
+        if (validation.error || !userFromDb) {
+            console.log(validation.error);
+            mongoClient.close();
+            res.sendStatus(422);
+        }
 
-    try {	
         await db.collection("messages").insertOne(message);
-		res.status(201).send();
-	} catch (error) {
-	    res.status(500).send(error)
-	}
+        mongoClient.close();
+        res.status(201).send();
+    } catch (error) {
+        mongoClient.close();
+        res.status(500).send(error);
+    }
 });
 
 app.get('/messages', (req, res) => {
 
 });
 
-app.post('/status', (req, res) => {
+app.post('/status', async (req, res) => {
 
+    await mongoClient.connect();
+    const db = mongoClient.db("uol");
+
+    const user = req.headers.user;
+
+    try {
+        const userFromDb = await db.collection("users").findOne({ name: user });
+        userFromDb.lastStatus = Date.now();
+
+        if (!userFromDb) {
+            mongoClient.close();
+            res.sendStatus(404);
+        }
+
+        await db.collection('users').updateOne({ name: user }, { $set: {lastStatus: Date.now()} });
+        mongoClient.close();
+        res.sendStatus(200);
+
+    } catch (error) {
+        console.log(error);
+        mongoClient.close();
+        res.sendStatus(500);
+    }
 });
-
 
 
 app.listen(5000);
