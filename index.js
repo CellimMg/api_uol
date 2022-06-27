@@ -18,7 +18,7 @@ async function cleanData() {
     await mongoClient.connect();
     const db = mongoClient.db("uol");
     try {
-        const users = await db.collection("users").find({ lastStatus: { $lte: Date.now() - 5000 } }).toArray();
+        const users = await db.collection("users").find({ lastStatus: { $lte: Date.now() - 10000 } }).toArray();
         const ids = users.map(user => user._id);
         const messages = users.map(user => {
             return {
