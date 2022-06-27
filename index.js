@@ -12,6 +12,23 @@ app.use(express.json());
 
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 
+
+
+
+const userSchema = joi.object({
+    name: joi.string().min(1).required(),
+    lastStatus: joi.number().required()
+});
+
+const messageSchema = joi.object({
+    from: joi.string().required(),
+    to: joi.string().min(1).required(),
+    text: joi.string().min(1).required(),
+    type: joi.string().valid('message', 'private_message').required(),
+    time: joi.string().required()
+});
+
+
 setInterval(cleanData, 15000);
 
 async function cleanData() {
@@ -40,19 +57,6 @@ async function cleanData() {
         mongoClient.close();
     }
 }
-
-const userSchema = joi.object({
-    name: joi.string().min(1).required(),
-    lastStatus: joi.number().required()
-});
-
-const messageSchema = joi.object({
-    from: joi.string().required(),
-    to: joi.string().min(1).required(),
-    text: joi.string().min(1).required(),
-    type: joi.string().valid('message', 'private_message', 'status').required(),
-    time: joi.string().required()
-});
 
 app.post('/participants', async (req, res) => {
     await mongoClient.connect();
@@ -89,6 +93,7 @@ app.post('/participants', async (req, res) => {
             type: 'status',
             time: dayjs().format('HH:mm:ss')
         });
+
         res.sendStatus(201);
         mongoClient.close();
 
