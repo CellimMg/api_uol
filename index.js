@@ -18,9 +18,22 @@ async function cleanData() {
     await mongoClient.connect();
     const db = mongoClient.db("uol");
     try {
-        const users = await db.collection("users").find({ lastStatus: { $lte: Date.now() - 10000 } }).toArray();
+        const users = await db.collection("users").find({ lastStatus: { $lte: Date.now() - 5000 } }).toArray();
         const ids = users.map(user => user._id);
+        const messages = users.map(user => {
+            return {
+                from: user.name,
+                to: 'Todos',
+                text: 'saiu da sala...',
+                type: 'status',
+                time: dayjs().format('HH:mm:ss')
+            };
+        });
+
         await db.collection("users").deleteMany({ _id: { $in: [...ids] } });
+        if (messages.length > 0) {
+            await db.collection("messages").insertMany(messages);
+        }
         mongoClient.close();
     } catch (error) {
         console.log(error);
