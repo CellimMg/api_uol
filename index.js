@@ -12,6 +12,23 @@ app.use(express.json());
 
 const mongoClient = new MongoClient(process.env.MONGO_URI);
 
+setInterval(cleanData, 15000);
+
+async function cleanData() {
+    await mongoClient.connect();
+    const db = mongoClient.db("uol");
+    try {
+        const users = await db.collection("users").find({ lastStatus: { $lte: Date.now() - 10000 } }).toArray();
+        const ids = users.map(user => user._id);
+        console.log(ids);
+        await db.collection("users").deleteMany({ _id: { $in: [...ids] } });
+        mongoClient.close();
+    } catch (error) {
+        console.log(error);
+        mongoClient.close();
+    }
+}
+
 const userSchema = joi.object({
     name: joi.string().min(1).required(),
     lastStatus: joi.number().required()
@@ -39,14 +56,16 @@ app.post('/participants', async (req, res) => {
         if (validation.error) {
             console.log(validation.error.details);
             const messages = validation.error.details.map(item => item.message);
-            mongoClient.close();
             res.status(422).send(messages);
+            mongoClient.close();
+            return;
         }
 
         const userWithName = await db.collection("users").findOne({ name: name });
         if (userWithName) {
-            mongoClient.close();
             res.sendStatus(409);
+            mongoClient.close();
+            return;
         }
 
         db.collection("users").insertOne(userToInsert);
@@ -58,12 +77,13 @@ app.post('/participants', async (req, res) => {
             type: 'status',
             time: dayjs().format('HH:mm:ss')
         });
-        mongoClient.close();
         res.sendStatus(201);
+        mongoClient.close();
+
     } catch (error) {
         console.log(error);
-        mongoClient.close();
         res.sendStatus(500);
+        mongoClient.close();
     }
 });
 
@@ -73,12 +93,12 @@ app.get('/participants', async (req, res) => {
     try {
         const participantsColection = db.collection("users");
         const participantsList = await participantsColection.find().toArray();
-        mongoClient.close();
         res.status(200).send(participantsList);
+        mongoClient.close();
     } catch (error) {
         console.log(error);
-        mongoClient.close();
         res.status(500).send(error);
+        mongoClient.close();
     }
 });
 
@@ -104,16 +124,17 @@ app.post('/messages', async (req, res) => {
 
         if (validation.error || !userFromDb) {
             console.log(validation.error);
-            mongoClient.close();
             res.sendStatus(422);
+            mongoClient.close();
+            return;
         }
 
         await db.collection("messages").insertOne(message);
-        mongoClient.close();
         res.status(201).send();
-    } catch (error) {
         mongoClient.close();
+    } catch (error) {
         res.status(500).send(error);
+        mongoClient.close();
     }
 });
 
@@ -133,18 +154,18 @@ app.post('/status', async (req, res) => {
         userFromDb.lastStatus = Date.now();
 
         if (!userFromDb) {
-            mongoClient.close();
             res.sendStatus(404);
+            mongoClient.close();
+            return;
         }
 
-        await db.collection('users').updateOne({ name: user }, { $set: {lastStatus: Date.now()} });
-        mongoClient.close();
+        await db.collection('users').updateOne({ name: user }, { $set: { lastStatus: Date.now() } });
         res.sendStatus(200);
-
+        mongoClient.close();
     } catch (error) {
         console.log(error);
-        mongoClient.close();
         res.sendStatus(500);
+        mongoClient.close();
     }
 });
 
