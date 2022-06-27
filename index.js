@@ -20,7 +20,6 @@ async function cleanData() {
     try {
         const users = await db.collection("users").find({ lastStatus: { $lte: Date.now() - 10000 } }).toArray();
         const ids = users.map(user => user._id);
-        console.log(ids);
         await db.collection("users").deleteMany({ _id: { $in: [...ids] } });
         mongoClient.close();
     } catch (error) {
@@ -91,8 +90,7 @@ app.get('/participants', async (req, res) => {
     await mongoClient.connect();
     const db = mongoClient.db("uol");
     try {
-        const participantsColection = db.collection("users");
-        const participantsList = await participantsColection.find().toArray();
+        const participantsList = await db.collection("users").find().toArray();
         res.status(200).send(participantsList);
         mongoClient.close();
     } catch (error) {
@@ -138,8 +136,24 @@ app.post('/messages', async (req, res) => {
     }
 });
 
-app.get('/messages', (req, res) => {
-
+app.get('/messages', async (req, res) => {
+    const limit = req.query.limit;
+    const user = req.headers.user;
+    await mongoClient.connect();
+    const db = mongoClient.db("uol");
+    try {
+        const messages = await db.collection("messages").find({ $or: [{ to: user }, { from: user }, { to: "Todos" },] }).toArray();
+        if (limit) {
+            res.status(200).send([...messages].reverse().slice(0, limit));
+        } else {
+            res.status(200).send([...messages].reverse());
+        }
+        mongoClient.close();
+    } catch (error) {
+        console.log(error);
+        res.sendStatus(500);
+        mongoClient.close();
+    }
 });
 
 app.post('/status', async (req, res) => {
