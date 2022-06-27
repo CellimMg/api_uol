@@ -50,7 +50,7 @@ const messageSchema = joi.object({
     from: joi.string().required(),
     to: joi.string().min(1).required(),
     text: joi.string().min(1).required(),
-    type: joi.string().valid('message', 'private_message').required(),
+    type: joi.string().valid('message', 'private_message', 'status').required(),
     time: joi.string().required()
 });
 
@@ -178,7 +178,7 @@ app.post('/status', async (req, res) => {
 
     try {
         const userFromDb = await db.collection("users").findOne({ name: user });
-        userFromDb.lastStatus = Date.now();
+
 
         if (!userFromDb) {
             res.sendStatus(404);
