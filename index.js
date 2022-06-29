@@ -10,10 +10,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const mongoClient = new MongoClient(process.env.MONGO_URI);
-
-
-
 
 const userSchema = joi.object({
     name: joi.string().min(1).required(),
@@ -32,6 +28,7 @@ const messageSchema = joi.object({
 setInterval(cleanData, 15000);
 
 async function cleanData() {
+    const mongoClient = new MongoClient(process.env.MONGO_URI);
     await mongoClient.connect();
     const db = mongoClient.db("uol");
     try {
@@ -59,6 +56,7 @@ async function cleanData() {
 }
 
 app.post('/participants', async (req, res) => {
+    const mongoClient = new MongoClient(process.env.MONGO_URI);
     await mongoClient.connect();
     const db = mongoClient.db("uol");
     try {
@@ -105,6 +103,7 @@ app.post('/participants', async (req, res) => {
 });
 
 app.get('/participants', async (req, res) => {
+    const mongoClient = new MongoClient(process.env.MONGO_URI);
     await mongoClient.connect();
     const db = mongoClient.db("uol");
     try {
@@ -119,6 +118,7 @@ app.get('/participants', async (req, res) => {
 });
 
 app.post('/messages', async (req, res) => {
+    const mongoClient = new MongoClient(process.env.MONGO_URI);
     await mongoClient.connect();
     const db = mongoClient.db("uol");
 
@@ -155,16 +155,19 @@ app.post('/messages', async (req, res) => {
 });
 
 app.get('/messages', async (req, res) => {
-    const limit = req.query.limit;
-    const user = req.headers.user;
+    const mongoClient = new MongoClient(process.env.MONGO_URI);
     await mongoClient.connect();
     const db = mongoClient.db("uol");
+
+    const limit = req.query.limit;
+    const user = req.headers.user;
+
     try {
         const messages = await db.collection("messages").find({ $or: [{ to: user }, { from: user }, { to: "Todos" },] }).toArray();
         if (limit) {
-            res.status(200).send([...messages].reverse().slice(0, limit));
+            res.status(200).send([...messages].slice(0, limit));
         } else {
-            res.status(200).send([...messages].reverse());
+            res.status(200).send([...messages]);
         }
         mongoClient.close();
     } catch (error) {
@@ -175,7 +178,7 @@ app.get('/messages', async (req, res) => {
 });
 
 app.post('/status', async (req, res) => {
-
+    const mongoClient = new MongoClient(process.env.MONGO_URI);
     await mongoClient.connect();
     const db = mongoClient.db("uol");
 
@@ -183,7 +186,6 @@ app.post('/status', async (req, res) => {
 
     try {
         const userFromDb = await db.collection("users").findOne({ name: user });
-
 
         if (!userFromDb) {
             res.sendStatus(404);
